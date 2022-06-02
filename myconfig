@@ -1,0 +1,4 @@
+name: {{ my_name }}
+dir_name: {{test}} 
+my_name: {{Ahmad}}
+update: {{false}} 

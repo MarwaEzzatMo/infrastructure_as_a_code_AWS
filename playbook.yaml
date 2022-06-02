@@ -1,0 +1,55 @@
+- hosts: web
+  remote_user: ubuntu
+  become: true
+
+  vars_prompt:
+    - name: password
+      prompt: What is your password?
+      private: false
+  
+
+  tasks:
+    - name: apt update 
+      apt:
+        update_cache: yes
+      when: ansible_facts["os_family"]=="Debian"
+  
+    - name: install apache
+      apt:
+        name: nginx
+        state: present
+  
+    - name: Create a directory if it does not exist
+      ansible.builtin.file:
+        path: "{{ dir_name }}" 
+        state: directory
+        mode: '0755'
+  
+    - name: run command
+      command: "ls {{ dir_name }}"
+      register: results
+
+    - name: print std
+      debug:
+        var: results.stdout
+
+    - name: Template a file 
+      template:
+        src: my_config
+        dest: my_onfig
+      notify: restart nginx
+    
+    - name: create users
+      user:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - rana
+        - mostafa
+        - eyad
+      
+  handlers:
+   - name: restart nginx
+     service: 
+       name: nginx
+       state: restarted

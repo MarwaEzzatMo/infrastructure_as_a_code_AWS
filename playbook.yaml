@@ -1,55 +1,65 @@
 - hosts: web
   remote_user: ubuntu
   become: true
+  vars:
+    container_count: 4
+    default_container_name: docker
+    default_container_image: ubuntu
+    default_container_command: sleep 1
 
-  vars_prompt:
-    - name: password
-      prompt: What is your password?
-      private: false
   
 
   tasks:
-    - name: apt update 
+    - name: Install aptitude
       apt:
-        update_cache: yes
-      when: ansible_facts["os_family"]=="Debian"
-  
-    - name: install apache
+        name: aptitude
+        state: latest
+        update_cache: true
+
+    - name: Install required system packages
       apt:
-        name: nginx
-        state: present
-  
-    - name: Create a directory if it does not exist
-      ansible.builtin.file:
-        path: "{{ dir_name }}" 
-        state: directory
-        mode: '0755'
-  
-    - name: run command
-      command: "ls {{ dir_name }}"
-      register: results
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - python3-pip
+          - virtualenv
+          - python3-setuptools
+        state: latest
+        update_cache: true
 
-    - name: print std
-      debug:
-        var: results.stdout
 
-    - name: Template a file 
-      template:
-        src: my_config
-        dest: my_onfig
-      notify: restart nginx
-    
-    - name: create users
-      user:
-        name: "{{ item }}"
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
         state: present
-      with_items:
-        - rana
-        - mostafa
-        - eyad
-      
-  handlers:
-   - name: restart nginx
-     service: 
-       name: nginx
-       state: restarted
+
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Update apt and install docker-ce
+      apt:
+        name: docker-ce
+        state: latest
+        update_cache: true
+
+    - name: Install Docker Module for Python
+      pip:
+        name: docker   
+
+
+    - name: Pull default Docker image
+      community.docker.docker_image:
+        name: "{{ default_container_image }}"
+        source: pull
+
+    - name: Create default containers
+      community.docker.docker_container:
+        name: "{{ default_container_name }}{{ item }}"
+        image: "{{ default_container_image }}"
+        command: "{{ default_container_command }}"
+        state: present
+      with_sequence: count={{ container_count }}      
